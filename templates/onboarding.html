@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% set show_nav = false %}
+{% block title %}Welcome — Closet Curator{% endblock %}
+
+{% block content %}
+<main class="app app--no-nav">
+  <div class="onb-progress">
+    <span id="p1" class="done"></span>
+    <span id="p2"></span>
+    <span id="p3"></span>
+  </div>
+
+  <!-- Step 1: Styles -->
+  <section class="page" id="step1">
+    <div class="eyebrow">Step 1 of 3</div>
+    <h2 class="h-display" style="font-size: 32px; margin-top: 8px;">What's your <span style="color:var(--accent);">vibe</span>?</h2>
+    <p class="muted" style="margin-top: 8px;">Pick the styles you wear (or want to). Tap to rank — first pick is your top vibe.</p>
+
+    <div class="style-grid" id="styleGrid">
+      <button class="style-tile" data-style="streetwear"><div class="style-tile__emoji">🧢</div><div><div class="style-tile__name">Streetwear</div><div class="style-tile__desc">Hoodies, sneakers, graphic tees</div></div></button>
+      <button class="style-tile" data-style="minimal"><div class="style-tile__emoji">⬜</div><div><div class="style-tile__name">Minimal</div><div class="style-tile__desc">Clean lines, neutrals, quiet luxury</div></div></button>
+      <button class="style-tile" data-style="sporty"><div class="style-tile__emoji">🏃</div><div><div class="style-tile__name">Sporty</div><div class="style-tile__desc">Athleisure, technical, performance</div></div></button>
+      <button class="style-tile" data-style="vintage"><div class="style-tile__emoji">📻</div><div><div class="style-tile__name">Vintage</div><div class="style-tile__desc">Thrifted, retro, lived-in</div></div></button>
+      <button class="style-tile" data-style="formal"><div class="style-tile__emoji">🎩</div><div><div class="style-tile__name">Formal</div><div class="style-tile__desc">Tailored, suits, polished</div></div></button>
+      <button class="style-tile" data-style="business"><div class="style-tile__emoji">💼</div><div><div class="style-tile__name">Business</div><div class="style-tile__desc">Smart-casual, office-ready</div></div></button>
+      <button class="style-tile" data-style="y2k"><div class="style-tile__emoji">💿</div><div><div class="style-tile__name">Y2K</div><div class="style-tile__desc">Low-rise, metallic, baby tees</div></div></button>
+      <button class="style-tile" data-style="techwear"><div class="style-tile__emoji">⚙️</div><div><div class="style-tile__name">Techwear</div><div class="style-tile__desc">Functional, dark, utilitarian</div></div></button>
+      <button class="style-tile" data-style="preppy"><div class="style-tile__emoji">⛳</div><div><div class="style-tile__name">Preppy</div><div class="style-tile__desc">Polos, knits, classic Americana</div></div></button>
+      <button class="style-tile" data-style="bohemian"><div class="style-tile__emoji">🌾</div><div><div class="style-tile__name">Bohemian</div><div class="style-tile__desc">Flowy, earthy, layered</div></div></button>
+    </div>
+  </section>
+
+  <!-- Step 2: Body -->
+  <section class="page" id="step2" hidden>
+    <div class="eyebrow">Step 2 of 3 — optional</div>
+    <h2 class="h-display" style="font-size: 32px; margin-top: 8px;">Fit & <span style="color:var(--accent);">proportions</span></h2>
+    <p class="muted" style="margin-top: 8px;">Helps us nail the silhouette. Skip anything you'd rather not share.</p>
+
+    <div style="margin-top: 22px;">
+      <div class="field">
+        <label>Height (cm)</label>
+        <input type="number" id="height" inputmode="numeric" placeholder="e.g. 175" />
+      </div>
+      <div class="field">
+        <label>Weight (kg) — optional</label>
+        <input type="number" id="weight" inputmode="numeric" placeholder="e.g. 70" />
+      </div>
+      <div class="field">
+        <label>Body type</label>
+        <div class="chips" id="bodyChips">
+          <button type="button" class="chip" data-body="slim">Slim</button>
+          <button type="button" class="chip" data-body="athletic">Athletic</button>
+          <button type="button" class="chip" data-body="average">Average</button>
+          <button type="button" class="chip" data-body="curvy">Curvy</button>
+          <button type="button" class="chip" data-body="muscular">Muscular</button>
+          <button type="button" class="chip" data-body="prefer_not">Prefer not to say</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Fit preference</label>
+        <div class="chips" id="fitChips">
+          <button type="button" class="chip" data-fit="slim">Slim</button>
+          <button type="button" class="chip selected" data-fit="regular">Regular</button>
+          <button type="button" class="chip" data-fit="relaxed">Relaxed</button>
+          <button type="button" class="chip" data-fit="oversized">Oversized</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 3: Done -->
+  <section class="page" id="step3" hidden>
+    <div class="eyebrow">Step 3 of 3</div>
+    <h2 class="h-display" style="font-size: 32px; margin-top: 8px;">You're <span style="color:var(--accent);">in</span>.</h2>
+    <p class="muted" style="margin-top: 8px;">Next: build your cloud closet by adding a few clothing items. Five is enough to start generating outfits.</p>
+
+    <div style="margin-top: 28px; display: flex; flex-direction: column; gap: 14px;">
+      <div class="card" style="display:flex; gap:14px; align-items:center;">
+        <div class="feature-row__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="4"/><path d="M23 19V8a2 2 0 00-2-2h-3.2l-1.6-2.4A2 2 0 0014.5 3h-5a2 2 0 00-1.7.6L6.2 6H3a2 2 0 00-2 2v11a2 2 0 002 2h18a2 2 0 002-2z"/></svg></div>
+        <div>
+          <div style="font-weight:600;">Snap or upload</div>
+          <div class="muted" style="font-size:12.5px;">AI auto-tags every item</div>
+        </div>
+      </div>
+      <div class="card" style="display:flex; gap:14px; align-items:center;">
+        <div class="feature-row__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <div>
+          <div style="font-weight:600;">Generate looks</div>
+          <div class="muted" style="font-size:12.5px;">Tuned to event, weather, body</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="fixed-cta">
+    <button class="btn btn--primary" id="nextBtn" disabled>Continue</button>
+  </div>
+</main>
+
+<script>
+  const STATE = { step: 1, styles: [], body: { body_type: null, height_cm: null, weight_kg: null }, fit: 'regular' };
+
+  // Style tiles — multi-select with rank order
+  document.querySelectorAll('#styleGrid .style-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const id = tile.dataset.style;
+      const idx = STATE.styles.indexOf(id);
+      if (idx >= 0) STATE.styles.splice(idx, 1);
+      else STATE.styles.push(id);
+      renderStyleRanks();
+    });
+  });
+
+  function renderStyleRanks() {
+    document.querySelectorAll('#styleGrid .style-tile').forEach(tile => {
+      const id = tile.dataset.style;
+      const rank = STATE.styles.indexOf(id);
+      tile.classList.toggle('selected', rank >= 0);
+      const existing = tile.querySelector('.style-tile__rank');
+      if (existing) existing.remove();
+      if (rank >= 0) {
+        const badge = document.createElement('div');
+        badge.className = 'style-tile__rank';
+        badge.textContent = rank + 1;
+        tile.appendChild(badge);
+      }
+    });
+    document.getElementById('nextBtn').disabled = STATE.styles.length === 0;
+  }
+
+  document.querySelectorAll('#bodyChips .chip').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('#bodyChips .chip').forEach(x => x.classList.remove('selected'));
+      c.classList.add('selected');
+      STATE.body.body_type = c.dataset.body;
+    });
+  });
+  document.querySelectorAll('#fitChips .chip').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('#fitChips .chip').forEach(x => x.classList.remove('selected'));
+      c.classList.add('selected');
+      STATE.fit = c.dataset.fit;
+    });
+  });
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    if (STATE.step === 1) {
+      go(2);
+      document.getElementById('nextBtn').disabled = false;
+      document.getElementById('nextBtn').textContent = 'Continue';
+    } else if (STATE.step === 2) {
+      STATE.body.height_cm = parseInt(document.getElementById('height').value) || null;
+      STATE.body.weight_kg = parseInt(document.getElementById('weight').value) || null;
+      go(3);
+      document.getElementById('nextBtn').textContent = 'Build my closet →';
+    } else {
+      window.CC.update(s => {
+        s.profile.styles = STATE.styles;
+        s.profile.body = STATE.body;
+        s.profile.fit_preference = STATE.fit;
+        s.onboarded = true;
+      });
+      window.location.href = '/closet';
+    }
+  });
+
+  function go(n) {
+    STATE.step = n;
+    [1, 2, 3].forEach(i => {
+      document.getElementById('step' + i).hidden = (i !== n);
+      document.getElementById('p' + i).classList.toggle('done', i <= n);
+    });
+    window.scrollTo(0, 0);
+  }
+</script>
+{% endblock %}

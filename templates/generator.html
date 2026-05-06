@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% set show_nav = true %}
+{% block title %}Style Me — Closet Curator{% endblock %}
+
+{% block content %}
+<main class="app">
+  <div class="topbar">
+    <div>
+      <h1>Style me</h1>
+      <div class="sub">Tell me where you're headed</div>
+    </div>
+  </div>
+
+  <section class="page" style="padding-top: 8px;">
+    <!-- Setup -->
+    <div id="setup">
+      <div class="eyebrow" style="margin-bottom: 10px;">Occasion</div>
+      <div class="event-grid" id="eventGrid">
+        <button class="event-tile selected" data-event="casual"><span class="emoji">👕</span>Casual</button>
+        <button class="event-tile" data-event="work"><span class="emoji">💼</span>Work</button>
+        <button class="event-tile" data-event="date"><span class="emoji">🌙</span>Date</button>
+        <button class="event-tile" data-event="formal"><span class="emoji">🎩</span>Formal</button>
+        <button class="event-tile" data-event="gym"><span class="emoji">🏃</span>Gym</button>
+        <button class="event-tile" data-event="weekend"><span class="emoji">☕</span>Weekend</button>
+      </div>
+
+      <div class="eyebrow" style="margin: 18px 0 10px;">Weather</div>
+      <div class="weather-card">
+        <div class="weather-card__icon" id="wxIcon">🌤️</div>
+        <div class="weather-card__main">
+          <div class="weather-card__temp"><span id="wxTemp">18</span>°C</div>
+          <div class="weather-card__desc" id="wxDesc">Mild · partly cloudy</div>
+        </div>
+        <button class="btn btn--ghost btn--sm" style="width:auto;" id="wxEdit">Adjust</button>
+      </div>
+
+      <div id="wxControls" hidden style="margin-bottom: 18px;">
+        <div class="field">
+          <label>Temperature: <span id="tempLabel">18</span>°C</label>
+          <input type="range" id="tempRange" min="-10" max="40" value="18" style="width:100%;" />
+        </div>
+        <div class="chips" id="condChips">
+          <button class="chip selected" data-cond="clear">Clear</button>
+          <button class="chip" data-cond="cloudy">Cloudy</button>
+          <button class="chip" data-cond="rain">Rainy</button>
+          <button class="chip" data-cond="snow">Snowy</button>
+          <button class="chip" data-cond="hot">Hot/Sun</button>
+        </div>
+      </div>
+
+      <button class="btn btn--primary" id="genBtn" style="margin-top: 12px;">Generate outfits</button>
+      <p class="muted" style="text-align:center; font-size:12px; margin-top:10px;" id="closetHint"></p>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" hidden class="loader" style="margin-top: 40px;">
+      <div class="loader__spinner"></div>
+      <div class="loader__text">Curating looks just for you…</div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" hidden>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 14px;">
+        <div>
+          <div class="eyebrow">Curated for you</div>
+          <div style="font-family: var(--font-display); font-size: 18px; margin-top: 2px;" id="resultsContext"></div>
+        </div>
+        <button class="btn btn--ghost btn--sm" style="width:auto;" id="regenBtn">↻ Regenerate</button>
+      </div>
+      <div id="outfitList"></div>
+      <div id="missing" hidden class="card" style="margin-top: 12px;">
+        <div class="eyebrow" style="color: var(--accent-2);">Wardrobe gaps</div>
+        <ul id="missingList" style="margin: 8px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 13px;"></ul>
+      </div>
+      <button class="btn btn--ghost" id="newGenBtn" style="margin-top: 18px;">← New search</button>
+    </div>
+  </section>
+</main>
+
+<script>
+  const SETUP = { event: 'casual', temp: 18, cond: 'clear' };
+
+  // Event tiles
+  document.querySelectorAll('#eventGrid .event-tile').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('#eventGrid .event-tile').forEach(x => x.classList.remove('selected'));
+      t.classList.add('selected');
+      SETUP.event = t.dataset.event;
+    });
+  });
+
+  // Weather
+  document.getElementById('wxEdit').addEventListener('click', () => {
+    const c = document.getElementById('wxControls');
+    c.hidden = !c.hidden;
+  });
+  document.getElementById('tempRange').addEventListener('input', e => {
+    SETUP.temp = parseInt(e.target.value);
+    document.getElementById('tempLabel').textContent = SETUP.temp;
+    document.getElementById('wxTemp').textContent = SETUP.temp;
+    updateWxDesc();
+  });
+  document.querySelectorAll('#condChips .chip').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('#condChips .chip').forEach(x => x.classList.remove('selected'));
+      c.classList.add('selected');
+      SETUP.cond = c.dataset.cond;
+      updateWxDesc();
+    });
+  });
+
+  function updateWxDesc() {
+    const icons = { clear: '🌤️', cloudy: '☁️', rain: '🌧️', snow: '❄️', hot: '☀️' };
+    const adj = SETUP.temp < 5 ? 'Cold' : SETUP.temp < 15 ? 'Cool' : SETUP.temp < 24 ? 'Mild' : 'Warm';
+    document.getElementById('wxIcon').textContent = icons[SETUP.cond] || '🌤️';
+    document.getElementById('wxDesc').textContent = adj + ' · ' + SETUP.cond;
+  }
+
+  // Hint
+  function checkCloset() {
+    const state = window.CC.get();
+    const hint = document.getElementById('closetHint');
+    const btn = document.getElementById('genBtn');
+    if (state.closet.length < 3) {
+      hint.textContent = `Add ${3 - state.closet.length} more item${state.closet.length === 2 ? '' : 's'} to generate outfits.`;
+      btn.disabled = true;
+    } else {
+      hint.textContent = `Building from ${state.closet.length} items in your closet.`;
+      btn.disabled = false;
+    }
+  }
+  checkCloset();
+
+  // Generate
+  async function generate() {
+    const state = window.CC.get();
+    document.getElementById('setup').hidden = true;
+    document.getElementById('results').hidden = true;
+    document.getElementById('loading').hidden = false;
+
+    try {
+      // Send a slim version of the closet (without image data) to keep payload small.
+      const slimCloset = state.closet.map(i => ({
+        id: i.id, name: i.name, type: i.type, subtype: i.subtype,
+        primary_color: i.primary_color, secondary_color: i.secondary_color,
+        pattern: i.pattern, fit: i.fit, style_tags: i.style_tags,
+        warmth: i.warmth, season: i.season, formality: i.formality,
+      }));
+
+      const r = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          closet: slimCloset,
+          preferences: state.profile,
+          event: SETUP.event,
+          weather: { temp_c: SETUP.temp, condition: SETUP.cond },
+          feedback: state.feedback,
+          n: 3,
+        }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || 'Generation failed');
+      }
+      const data = await r.json();
+      renderResults(data, state);
+    } catch (e) {
+      document.getElementById('loading').hidden = true;
+      document.getElementById('setup').hidden = false;
+      window.toast(e.message || 'Failed to generate');
+    }
+  }
+
+  function renderResults(data, state) {
+    const itemMap = Object.fromEntries(state.closet.map(i => [i.id, i]));
+    const list = document.getElementById('outfitList');
+    document.getElementById('resultsContext').textContent = `${SETUP.event[0].toUpperCase() + SETUP.event.slice(1)} · ${SETUP.temp}°C ${SETUP.cond}`;
+
+    list.innerHTML = (data.outfits || []).map(o => {
+      const items = (o.item_ids || []).map(id => itemMap[id]).filter(Boolean);
+      const liked = state.feedback.liked.includes(o.id);
+      const disliked = state.feedback.disliked.includes(o.id);
+      const saved = state.saved.some(s => s.id === o.id);
+      const cls = items.length === 3 ? 'count-3' : '';
+      return `
+        <div class="outfit-card" data-id="${o.id}">
+          <div class="outfit-card__items ${cls}">
+            ${items.map(i => `
+              <div class="outfit-card__item">
+                <img src="${i.image}" alt="${i.name}" />
+                <div class="outfit-card__item-label">${i.type}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="outfit-card__body">
+            <div class="outfit-card__name">${o.name || 'Look'}</div>
+            <div class="outfit-card__why">${o.why_it_works || ''}</div>
+            <div class="outfit-card__tags">${(o.vibe_tags || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
+            <div class="outfit-card__actions">
+              <button class="icon-btn like ${liked ? 'active' : ''}" data-action="like">
+                <svg viewBox="0 0 24 24" fill="${liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.3a2 2 0 002-1.7l1.4-9A2 2 0 0019.7 9z"/></svg>
+                Like
+              </button>
+              <button class="icon-btn dislike ${disliked ? 'active' : ''}" data-action="dislike">
+                <svg viewBox="0 0 24 24" fill="${disliked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 003 3l4-9V2H5.7a2 2 0 00-2 1.7L2.3 13A2 2 0 004.3 15z"/></svg>
+                Pass
+              </button>
+              <button class="icon-btn save ${saved ? 'active' : ''}" data-action="save">
+                <svg viewBox="0 0 24 24" fill="${saved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('.outfit-card').forEach(card => {
+      const id = card.dataset.id;
+      const outfit = data.outfits.find(o => o.id === id);
+      card.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const action = btn.dataset.action;
+          if (action === 'like') { window.CC.likeOutfit(id); window.toast('Got it — more like this'); }
+          else if (action === 'dislike') { window.CC.dislikeOutfit(id); window.toast('Noted — less like this'); }
+          else if (action === 'save') {
+            const cur = window.CC.get();
+            if (cur.saved.some(s => s.id === id)) {
+              window.CC.unsaveOutfit(id);
+              window.toast('Removed from saved');
+            } else {
+              window.CC.saveOutfit({ ...outfit, saved_at: Date.now() });
+              window.toast('Saved');
+            }
+          }
+          renderResults(data, window.CC.get());
+        });
+      });
+    });
+
+    if (data.missing && data.missing.length) {
+      document.getElementById('missing').hidden = false;
+      document.getElementById('missingList').innerHTML = data.missing.map(m => `<li>${m}</li>`).join('');
+    } else {
+      document.getElementById('missing').hidden = true;
+    }
+
+    document.getElementById('loading').hidden = true;
+    document.getElementById('results').hidden = false;
+    window.scrollTo(0, 0);
+  }
+
+  document.getElementById('genBtn').addEventListener('click', generate);
+  document.getElementById('regenBtn').addEventListener('click', generate);
+  document.getElementById('newGenBtn').addEventListener('click', () => {
+    document.getElementById('results').hidden = true;
+    document.getElementById('setup').hidden = false;
+  });
+</script>
+{% endblock %}

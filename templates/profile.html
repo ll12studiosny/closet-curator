@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% set show_nav = true %}
+{% block title %}Profile — Closet Curator{% endblock %}
+
+{% block content %}
+<main class="app">
+  <div class="topbar">
+    <div>
+      <h1>Profile</h1>
+      <div class="sub">Style & fit preferences</div>
+    </div>
+  </div>
+
+  <section class="page" style="padding-top: 8px;">
+    <div class="section">
+      <div class="eyebrow" style="margin-bottom: 10px;">Your styles</div>
+      <p class="muted" style="font-size: 13px; margin: 0 0 14px;">Tap to add or remove. Order matters — your top pick guides the AI most.</p>
+      <div class="chips" id="styleChips"></div>
+    </div>
+
+    <div class="section">
+      <div class="eyebrow" style="margin-bottom: 10px;">Body & fit</div>
+      <div class="card">
+        <div class="row">
+          <div class="row__label">Height</div>
+          <div class="row__value"><input type="number" id="height" placeholder="—" style="width:80px; background:transparent; border:0; color:var(--text); text-align:right; font: inherit;" /> cm</div>
+        </div>
+        <div class="row">
+          <div class="row__label">Body type</div>
+          <div class="row__value">
+            <select id="bodyType" style="background:transparent; border:0; color:var(--text); font: inherit; text-align:right;">
+              <option value="">—</option>
+              <option value="slim">Slim</option>
+              <option value="athletic">Athletic</option>
+              <option value="average">Average</option>
+              <option value="curvy">Curvy</option>
+              <option value="muscular">Muscular</option>
+              <option value="prefer_not">Prefer not to say</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row__label">Fit preference</div>
+          <div class="row__value">
+            <select id="fitPref" style="background:transparent; border:0; color:var(--text); font: inherit; text-align:right;">
+              <option value="slim">Slim</option>
+              <option value="regular">Regular</option>
+              <option value="relaxed">Relaxed</option>
+              <option value="oversized">Oversized</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="eyebrow" style="margin-bottom: 10px;">Stats</div>
+      <div class="card">
+        <div class="row"><div class="row__label">Closet items</div><div class="row__value" id="statCloset">0</div></div>
+        <div class="row"><div class="row__label">Saved looks</div><div class="row__value" id="statSaved">0</div></div>
+        <div class="row"><div class="row__label">Liked outfits</div><div class="row__value" id="statLiked">0</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <button class="btn btn--primary" id="saveBtn">Save changes</button>
+      <button class="btn btn--outline" id="resetBtn" style="margin-top: 10px; color: var(--danger); border-color: var(--danger);">Reset everything</button>
+    </div>
+
+    <div style="text-align: center; color: var(--text-faint); font-size: 12px; padding: 24px 0 12px;">
+      <div style="font-family: var(--font-display); font-weight: 600; letter-spacing: 0.06em;">CLOSET CURATOR</div>
+      <div style="margin-top: 4px;">Powered by Claude</div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const STYLES = [
+    ['streetwear', 'Streetwear'], ['minimal', 'Minimal'], ['sporty', 'Sporty'],
+    ['vintage', 'Vintage'], ['formal', 'Formal'], ['business', 'Business'],
+    ['y2k', 'Y2K'], ['techwear', 'Techwear'], ['preppy', 'Preppy'], ['bohemian', 'Bohemian'],
+  ];
+
+  let selectedStyles = [];
+
+  function renderChips() {
+    const container = document.getElementById('styleChips');
+    container.innerHTML = STYLES.map(([id, label]) => {
+      const rank = selectedStyles.indexOf(id);
+      const sel = rank >= 0 ? 'selected' : '';
+      const num = rank >= 0 ? `<span style="font-weight:700; margin-right:6px;">${rank + 1}.</span>` : '';
+      return `<button class="chip ${sel}" data-style="${id}">${num}${label}</button>`;
+    }).join('');
+    container.querySelectorAll('.chip').forEach(c => {
+      c.addEventListener('click', () => {
+        const id = c.dataset.style;
+        const idx = selectedStyles.indexOf(id);
+        if (idx >= 0) selectedStyles.splice(idx, 1);
+        else selectedStyles.push(id);
+        renderChips();
+      });
+    });
+  }
+
+  function load() {
+    const state = window.CC.get();
+    selectedStyles = [...(state.profile.styles || [])];
+    document.getElementById('height').value = state.profile.body.height_cm || '';
+    document.getElementById('bodyType').value = state.profile.body.body_type || '';
+    document.getElementById('fitPref').value = state.profile.fit_preference || 'regular';
+    document.getElementById('statCloset').textContent = state.closet.length;
+    document.getElementById('statSaved').textContent = state.saved.length;
+    document.getElementById('statLiked').textContent = state.feedback.liked.length;
+    renderChips();
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    window.CC.update(s => {
+      s.profile.styles = selectedStyles;
+      s.profile.body.height_cm = parseInt(document.getElementById('height').value) || null;
+      s.profile.body.body_type = document.getElementById('bodyType').value || null;
+      s.profile.fit_preference = document.getElementById('fitPref').value;
+    });
+    window.toast('Saved');
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    if (confirm('This will erase your closet, saved looks, and preferences. Continue?')) {
+      window.CC.reset();
+      window.location.href = '/';
+    }
+  });
+
+  load();
+</script>
+{% endblock %}

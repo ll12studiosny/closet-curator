@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set show_nav = false %}
+{% block title %}Closet Curator — Your AI Stylist{% endblock %}
+{% block body_class %}landing-body{% endblock %}
+
+{% block content %}
+<main class="app app--no-nav">
+  <section class="landing">
+    <div class="landing__bg"></div>
+    <div class="landing__brand"><span class="landing__brand-dot"></span>Closet Curator</div>
+
+    <div class="landing__hero">
+      <div class="eyebrow" style="margin-bottom: 18px;">AI Personal Stylist</div>
+      <h1 class="landing__title">
+        Your closet,<br />
+        <em>curated</em><br />
+        every morning.
+      </h1>
+      <p class="landing__sub">
+        Snap your wardrobe. Tell us your vibe. Get outfits built from clothes you already own — tuned to your body, the weather, and where you're headed.
+      </p>
+      <div class="landing__cta">
+        <a href="/onboarding" class="btn btn--primary">Get started — free</a>
+        <a href="/closet" class="btn btn--ghost" id="continueBtn" style="display:none;">Continue to closet</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="feature-strip">
+    <div class="eyebrow" style="margin-bottom: 12px;">How it works</div>
+
+    <div class="feature-row">
+      <div class="feature-row__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19V8a2 2 0 00-2-2h-3.2l-1.6-2.4A2 2 0 0014.5 3h-5a2 2 0 00-1.7.6L6.2 6H3a2 2 0 00-2 2v11a2 2 0 002 2h18a2 2 0 002-2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </div>
+      <div>
+        <div class="feature-row__title">1. Build your cloud closet</div>
+        <div class="feature-row__desc">Snap or upload each item. Our AI tags type, color, fit, and style automatically.</div>
+      </div>
+    </div>
+
+    <div class="feature-row">
+      <div class="feature-row__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 6.6L21 11l-5.4 3.9L17 22l-5-3-5 3 1.4-7.1L3 11l6.6-2.4z"/></svg>
+      </div>
+      <div>
+        <div class="feature-row__title">2. Tell us your taste</div>
+        <div class="feature-row__desc">Pick styles you love — streetwear, minimal, vintage, formal — and your fit preferences.</div>
+      </div>
+    </div>
+
+    <div class="feature-row">
+      <div class="feature-row__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <div>
+        <div class="feature-row__title">3. Get outfits, instantly</div>
+        <div class="feature-row__desc">Pick an event, weather adjusts automatically. Rate the looks — we get smarter every time.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const state = window.CC.get();
+    if (state.onboarded || state.closet.length > 0) {
+      const btn = document.getElementById('continueBtn');
+      if (btn) btn.style.display = 'inline-flex';
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% set show_nav = true %}
+{% block title %}Saved — Closet Curator{% endblock %}
+
+{% block content %}
+<main class="app">
+  <div class="topbar">
+    <div>
+      <h1>Saved</h1>
+      <div class="sub" id="savedCount">0 looks</div>
+    </div>
+  </div>
+
+  <section class="page" style="padding-top: 8px;">
+    <div id="savedEmpty" class="closet-empty" hidden>
+      <div class="blob">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+      </div>
+      <h2 class="h-section">No saved looks yet</h2>
+      <p class="muted" style="max-width: 30ch; margin: 0 auto;">Tap the bookmark on any outfit you love. They'll show up here.</p>
+      <div style="margin-top: 24px;">
+        <a href="/generator" class="btn btn--primary">Generate outfits</a>
+      </div>
+    </div>
+
+    <div id="savedList"></div>
+  </section>
+</main>
+
+<script>
+  function render() {
+    const state = window.CC.get();
+    const itemMap = Object.fromEntries(state.closet.map(i => [i.id, i]));
+    const empty = document.getElementById('savedEmpty');
+    const list = document.getElementById('savedList');
+
+    document.getElementById('savedCount').textContent = state.saved.length + ' look' + (state.saved.length === 1 ? '' : 's');
+
+    if (state.saved.length === 0) {
+      empty.hidden = false;
+      list.innerHTML = '';
+      return;
+    }
+    empty.hidden = true;
+
+    const sorted = [...state.saved].sort((a, b) => (b.saved_at || 0) - (a.saved_at || 0));
+    list.innerHTML = sorted.map(o => {
+      const items = (o.item_ids || []).map(id => itemMap[id]).filter(Boolean);
+      const cls = items.length === 3 ? 'count-3' : '';
+      return `
+        <div class="outfit-card" data-id="${o.id}">
+          <div class="outfit-card__items ${cls}">
+            ${items.map(i => `
+              <div class="outfit-card__item">
+                ${i ? `<img src="${i.image}" alt="${i.name}" /><div class="outfit-card__item-label">${i.type}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+          <div class="outfit-card__body">
+            <div class="outfit-card__name">${o.name || 'Look'}</div>
+            <div class="outfit-card__why">${o.why_it_works || ''}</div>
+            <div class="outfit-card__tags">${(o.vibe_tags || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
+            <div class="outfit-card__actions">
+              <button class="icon-btn save active" data-action="unsave">
+                <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                Saved
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('[data-action="unsave"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('.outfit-card').dataset.id;
+        window.CC.unsaveOutfit(id);
+        window.toast('Removed from saved');
+        render();
+      });
+    });
+  }
+
+  render();
+</script>
+{% endblock %}
