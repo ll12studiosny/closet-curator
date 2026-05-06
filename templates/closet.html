@@ -40,6 +40,7 @@
   <!-- Categorizing modal -->
   <div id="catModal" class="modal" hidden>
     <div class="modal__panel">
+      <button id="catClose" aria-label="Close" style="position:absolute; top:14px; right:14px; width:36px; height:36px; border-radius:50%; background:rgba(0,0,0,0.6); color:#fff; border:none; font-size:20px; line-height:1; display:grid; place-items:center; z-index:5; cursor:pointer;">×</button>
       <img id="catPreview" alt="" />
       <div style="padding: 18px 20px;">
         <div class="eyebrow" id="catStatus">AI is tagging…</div>
@@ -234,6 +235,11 @@
   document.getElementById('catRetake').addEventListener('click', () => {
     closeModal();
     fileInput.click();
+  });
+
+  document.getElementById('catClose').addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
   });
 
   document.getElementById('catSave').addEventListener('click', () => {
