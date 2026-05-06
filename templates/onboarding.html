@@ -2,6 +2,11 @@
 {% set show_nav = false %}
 {% block title %}Welcome — Closet Curator{% endblock %}
 
+{% block head %}
+<link rel="prefetch" href="/closet" as="document" />
+<link rel="prefetch" href="/ping" />
+{% endblock %}
+
 {% block content %}
 <main class="app app--no-nav">
   <div class="onb-progress">
