@@ -10,7 +10,37 @@ load_dotenv()
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB
 
-CLAUDE_MODEL = "claude-sonnet-4-5"
+
+@app.after_request
+def _gzip_and_cache(resp):
+    # Cache static assets aggressively in the browser
+    if request.path.startswith("/static/"):
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    # Lightweight gzip for text/JSON responses
+    try:
+        import gzip, io
+        accept = request.headers.get("Accept-Encoding", "")
+        if (
+            "gzip" in accept
+            and resp.status_code == 200
+            and resp.content_length is not None
+            and resp.content_length > 1024
+            and resp.mimetype in ("text/html", "text/css", "application/javascript", "application/json", "text/plain")
+            and "Content-Encoding" not in resp.headers
+        ):
+            buf = io.BytesIO()
+            with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=6) as gz:
+                gz.write(resp.get_data())
+            resp.set_data(buf.getvalue())
+            resp.headers["Content-Encoding"] = "gzip"
+            resp.headers["Vary"] = "Accept-Encoding"
+            resp.headers["Content-Length"] = str(len(resp.get_data()))
+    except Exception:
+        pass
+    return resp
+
+CLAUDE_MODEL = "claude-sonnet-4-6"
+FAST_MODEL = "claude-haiku-4-5"
 
 _client = None
 
@@ -99,9 +129,9 @@ def api_categorize():
 
     try:
         msg = client().messages.create(
-            model=CLAUDE_MODEL,
+            model=FAST_MODEL,
             max_tokens=600,
-            system=system,
+            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             messages=[{
                 "role": "user",
                 "content": [
@@ -170,7 +200,7 @@ def api_generate():
         msg = client().messages.create(
             model=CLAUDE_MODEL,
             max_tokens=2000,
-            system=system,
+            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_prompt}],
         )
         text = msg.content[0].text.strip()
@@ -257,7 +287,7 @@ def api_wishlist_outfit():
         msg = client().messages.create(
             model=CLAUDE_MODEL,
             max_tokens=2000,
-            system=system,
+            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": user_content}],
         )
         text = msg.content[0].text.strip()
@@ -276,6 +306,12 @@ def api_wishlist_outfit():
 def health():
     has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
     return jsonify({"ok": True, "claude_configured": has_key})
+
+
+@app.get("/ping")
+def ping():
+    # Keep-warm endpoint for UptimeRobot. No Claude call, no cost.
+    return "pong", 200
 
 
 if __name__ == "__main__":
