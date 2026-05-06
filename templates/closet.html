@@ -41,10 +41,13 @@
   <div id="catModal" class="modal" hidden
        onclick="if(event.target===this){this.hidden=true;}">
     <button id="catClose" aria-label="Close" type="button"
-            onclick="window.closeModal && window.closeModal()"
-            ontouchend="window.closeModal && window.closeModal(); event.preventDefault();"
+            onclick="document.getElementById('catModal').hidden = true; return false;"
             style="position:fixed; top:max(20px, env(safe-area-inset-top)); right:20px; width:50px; height:50px; border-radius:50%; background:#fff; color:#000; border:none; font-size:28px; font-weight:700; line-height:1; padding:0; display:grid; place-items:center; z-index:9999; cursor:pointer; -webkit-tap-highlight-color:transparent; box-shadow:0 4px 16px rgba(0,0,0,0.6); touch-action:manipulation; user-select:none;">&times;</button>
     <div class="modal__panel">
+      <a href="/closet"
+         style="display:block; background:#d11; color:#fff; text-align:center; padding:18px; font-size:18px; font-weight:700; text-decoration:none; letter-spacing:0.05em;">
+        ✕ TAP HERE TO CLOSE
+      </a>
       <img id="catPreview" alt="" />
       <div style="padding: 18px 20px;">
         <div class="eyebrow" id="catStatus">AI is tagging&hellip;</div>
