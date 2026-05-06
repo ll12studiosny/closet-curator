@@ -25,6 +25,10 @@
     </div>
 
     <div id="closetGrid" class="closet-grid" hidden></div>
+
+    <a href="/generator" id="styleMeBanner" hidden style="display:none; margin-top: 22px; background: #fff; color: #000; border-radius: var(--radius); padding: 18px 20px; text-align: center; font-weight: 600; font-size: 15px; text-decoration: none;">
+      ✨ Ready to style? Generate outfits →
+    </a>
   </section>
 
   <button class="upload-fab" id="addFab" title="Add item" aria-label="Add item" hidden>
@@ -93,14 +97,17 @@
   function render() {
     const state = window.CC.get();
     document.getElementById('closetCount').textContent = state.closet.length + ' item' + (state.closet.length === 1 ? '' : 's');
+    const banner = document.getElementById('styleMeBanner');
     if (state.closet.length === 0) {
       empty.hidden = false;
       grid.hidden = true;
       fab.hidden = true;
+      banner.style.display = 'none';
     } else {
       empty.hidden = true;
       grid.hidden = false;
       fab.hidden = false;
+      banner.style.display = state.closet.length >= 3 ? 'block' : 'none';
       grid.innerHTML = state.closet.map(item => `
         <div class="closet-item" data-id="${item.id}">
           <img src="${item.image}" alt="${item.name}" />
