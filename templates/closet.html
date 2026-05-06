@@ -9,7 +9,7 @@
       <h1>Closet</h1>
       <div class="sub" id="closetCount">0 items</div>
     </div>
-    <button class="btn btn--ghost btn--sm" id="generateShortcut" style="width:auto;">Style me →</button>
+    <button class="btn btn--ghost btn--sm" id="generateShortcut" style="width:auto;">Style me &rarr;</button>
   </div>
 
   <section class="page" style="padding-top: 8px;">
@@ -27,7 +27,7 @@
     <div id="closetGrid" class="closet-grid" hidden></div>
 
     <a href="/generator" id="styleMeBanner" hidden style="display:none; margin-top: 22px; background: #fff; color: #000; border-radius: var(--radius); padding: 18px 20px; text-align: center; font-weight: 600; font-size: 15px; text-decoration: none;">
-      ✨ Ready to style? Generate outfits →
+      &#10024; Ready to style? Generate outfits &rarr;
     </a>
   </section>
 
@@ -39,11 +39,14 @@
 
   <!-- Categorizing modal -->
   <div id="catModal" class="modal" hidden>
-    <button id="catClose" aria-label="Close" type="button" style="position:fixed; top:max(16px, env(safe-area-inset-top)); right:16px; width:44px; height:44px; border-radius:50%; background:rgba(0,0,0,0.85); color:#fff; border:1px solid rgba(255,255,255,0.3); font-size:24px; line-height:1; padding:0; display:grid; place-items:center; z-index:200; cursor:pointer; -webkit-tap-highlight-color:transparent;">×</button>
+    <button id="catClose" aria-label="Close" type="button"
+            onclick="window.closeModal && window.closeModal()"
+            ontouchend="window.closeModal && window.closeModal(); event.preventDefault();"
+            style="position:fixed; top:max(20px, env(safe-area-inset-top)); right:20px; width:50px; height:50px; border-radius:50%; background:#fff; color:#000; border:none; font-size:28px; font-weight:700; line-height:1; padding:0; display:grid; place-items:center; z-index:9999; cursor:pointer; -webkit-tap-highlight-color:transparent; box-shadow:0 4px 16px rgba(0,0,0,0.6); touch-action:manipulation; user-select:none;">&times;</button>
     <div class="modal__panel">
       <img id="catPreview" alt="" />
       <div style="padding: 18px 20px;">
-        <div class="eyebrow" id="catStatus">AI is tagging…</div>
+        <div class="eyebrow" id="catStatus">AI is tagging&hellip;</div>
         <h3 class="h-section" id="catName" style="margin: 6px 0 4px;">New item</h3>
         <div class="chips" id="catTags" style="margin: 8px 0 18px;">
           <span class="chip shimmer" style="width:60px; height:28px;"></span>
@@ -52,7 +55,7 @@
         </div>
         <div class="field">
           <label>Name</label>
-          <input id="catNameInput" type="text" placeholder="Optional — AI will fill this in" />
+          <input id="catNameInput" type="text" placeholder="Optional &mdash; AI will fill this in" />
         </div>
         <div style="display:flex; gap:8px;">
           <button class="btn btn--ghost" id="catRetake">Retake</button>
@@ -95,6 +98,14 @@
   const fileInput = document.getElementById('fileInput');
   const modal = document.getElementById('catModal');
 
+  // Expose closeModal globally so the inline onclick on the X button can call it
+  // even before the rest of this script's listeners attach.
+  window.closeModal = function () {
+    modal.hidden = true;
+    modal._currentImage = null;
+    modal._currentMeta = null;
+  };
+
   function render() {
     const state = window.CC.get();
     document.getElementById('closetCount').textContent = state.closet.length + ' item' + (state.closet.length === 1 ? '' : 's');
@@ -114,7 +125,7 @@
           <img src="${item.image}" alt="${item.name}" />
           <div class="closet-item__meta">
             <div class="closet-item__name">${item.name || item.subtype || item.type}</div>
-            <div class="closet-item__type">${item.type} · ${item.primary_color || ''}</div>
+            <div class="closet-item__type">${item.type} &middot; ${item.primary_color || ''}</div>
           </div>
         </div>
       `).join('');
@@ -153,7 +164,6 @@
     fileInput.value = '';
   });
 
-  // Downscale to <=maxDim on the long edge, JPEG quality. Keeps payloads small + fast.
   function downscaleImage(file, maxDim = 1024, quality = 0.82) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -191,12 +201,6 @@
     modal._currentMeta = { name: '', type: 'top', primary_color: '', fit: 'regular', style_tags: [] };
   }
 
-  function closeModal() {
-    modal.hidden = true;
-    modal._currentImage = null;
-    modal._currentMeta = null;
-  }
-
   async function categorize(dataUrl) {
     try {
       const ctrl = new AbortController();
@@ -212,7 +216,6 @@
         throw new Error(err.error || 'Categorization failed');
       }
       const meta = await r.json();
-      // Modal might have closed already if user saved early — that's fine.
       if (modal.hidden || modal._currentImage !== dataUrl) return;
       modal._currentMeta = meta;
 
@@ -233,13 +236,13 @@
   }
 
   document.getElementById('catRetake').addEventListener('click', () => {
-    closeModal();
+    window.closeModal();
     fileInput.click();
   });
 
-  document.getElementById('catClose').addEventListener('click', closeModal);
+  // Tap outside the panel (on the dark backdrop) also closes.
   modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
+    if (e.target === modal) window.closeModal();
   });
 
   document.getElementById('catSave').addEventListener('click', () => {
@@ -261,13 +264,11 @@
       formality: meta.formality || 3,
     };
     window.CC.addClosetItem(item);
-    closeModal();
+    window.closeModal();
     render();
     window.toast('Added to closet');
   });
 
-  // Pre-warm: open a connection to the API as soon as the page loads,
-  // so the first photo upload doesn't pay TLS handshake or cold-start cost.
   fetch('/ping', { cache: 'no-store' }).catch(() => {});
 
   document.addEventListener('DOMContentLoaded', render);
