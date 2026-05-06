@@ -90,11 +90,11 @@
     const state = window.CC.get();
     const hint = document.getElementById('closetHint');
     const btn = document.getElementById('genBtn');
-    if (state.closet.length < 3) {
-      hint.textContent = `Add ${3 - state.closet.length} more closet item${state.closet.length === 2 ? '' : 's'} first so we can build outfits.`;
+    if (state.closet.length < 1) {
+      hint.textContent = `Add at least one item to your closet first.`;
       btn.disabled = true;
     } else {
-      hint.textContent = `Combining with ${state.closet.length} items in your closet.`;
+      hint.textContent = `Combining with ${state.closet.length} item${state.closet.length === 1 ? '' : 's'} in your closet.`;
       btn.disabled = false;
     }
   }

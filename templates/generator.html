@@ -121,11 +121,11 @@
     const state = window.CC.get();
     const hint = document.getElementById('closetHint');
     const btn = document.getElementById('genBtn');
-    if (state.closet.length < 3) {
-      hint.textContent = `Add ${3 - state.closet.length} more item${state.closet.length === 2 ? '' : 's'} to generate outfits.`;
+    if (state.closet.length < 1) {
+      hint.textContent = `Add at least one item to generate outfits.`;
       btn.disabled = true;
     } else {
-      hint.textContent = `Building from ${state.closet.length} items in your closet.`;
+      hint.textContent = `Building from ${state.closet.length} item${state.closet.length === 1 ? '' : 's'} in your closet.`;
       btn.disabled = false;
     }
   }

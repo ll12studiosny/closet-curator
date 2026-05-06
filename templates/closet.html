@@ -108,7 +108,7 @@
       empty.hidden = true;
       grid.hidden = false;
       fab.hidden = false;
-      banner.style.display = state.closet.length >= 3 ? 'block' : 'none';
+      banner.style.display = 'block';
       grid.innerHTML = state.closet.map(item => `
         <div class="closet-item" data-id="${item.id}">
           <img src="${item.image}" alt="${item.name}" />
@@ -133,8 +133,8 @@
   fab.addEventListener('click', () => fileInput.click());
   document.getElementById('generateShortcut').addEventListener('click', () => {
     const state = window.CC.get();
-    if (state.closet.length < 3) {
-      window.toast('Add at least 3 items first');
+    if (state.closet.length < 1) {
+      window.toast('Add at least one item first');
     } else {
       window.location.href = '/generator';
     }
