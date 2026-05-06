@@ -38,7 +38,8 @@
   <input type="file" id="fileInput" accept="image/*" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" />
 
   <!-- Categorizing modal -->
-  <div id="catModal" class="modal" hidden>
+  <div id="catModal" class="modal" hidden
+       onclick="if(event.target===this){this.hidden=true;}">
     <button id="catClose" aria-label="Close" type="button"
             onclick="window.closeModal && window.closeModal()"
             ontouchend="window.closeModal && window.closeModal(); event.preventDefault();"

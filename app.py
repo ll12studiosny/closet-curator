@@ -16,6 +16,11 @@ def _gzip_and_cache(resp):
     # Cache static assets aggressively in the browser
     if request.path.startswith("/static/"):
         resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif resp.mimetype == "text/html":
+        # Never cache HTML so users always get the latest version
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
     # Lightweight gzip for text/JSON responses
     try:
         import gzip, io
