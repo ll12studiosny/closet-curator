@@ -163,7 +163,7 @@ img { max-width: 100%; display: block; }
   width: 100%;
   max-width: var(--max-w);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: rgba(13, 13, 16, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);

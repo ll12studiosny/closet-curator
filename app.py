@@ -57,6 +57,11 @@ def profile():
     return render_template("profile.html")
 
 
+@app.route("/wishlist")
+def wishlist():
+    return render_template("wishlist.html")
+
+
 # ---------- API ----------
 
 @app.post("/api/categorize")
@@ -167,6 +172,93 @@ def api_generate():
             max_tokens=2000,
             system=system,
             messages=[{"role": "user", "content": user_prompt}],
+        )
+        text = msg.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.strip("`")
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+        result = json.loads(text)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/wishlist-outfit")
+def api_wishlist_outfit():
+    """Imagine a candidate item the user is considering buying, and build outfits
+    combining it with items already in their closet. Helps decide if the purchase
+    is worth it."""
+    data = request.get_json(silent=True) or {}
+    candidate = data.get("candidate", {})
+    closet_items = data.get("closet", [])
+    preferences = data.get("preferences", {})
+    n = int(data.get("n", 3))
+
+    if not candidate.get("description"):
+        return jsonify({"error": "Describe the item you're considering."}), 400
+    if not closet_items:
+        return jsonify({"error": "Add items to your closet first."}), 400
+
+    system = (
+        "You are a personal stylist helping the user decide whether to buy a candidate "
+        "clothing item. The candidate is described in text (and optionally an image). "
+        "Build outfits combining the candidate with items already in the user's closet. "
+        "Use ONLY the candidate plus items from their closet by id. Honor their style, "
+        "fit, and body preferences. End with a clear verdict: WORTH IT or PASS, with a "
+        "one-sentence reason. Return STRICT JSON only."
+    )
+
+    schema = (
+        '{"candidate_summary": string (one line), '
+        '"outfits": [{"id": string, "name": string, "candidate_in_outfit": true, '
+        '"item_ids": string[] (ids from closet only, NOT including candidate), '
+        '"why_it_works": string (max 240 chars), "vibe_tags": string[]}], '
+        '"verdict": one of ["worth_it", "pass", "maybe"], '
+        '"verdict_reason": string (max 200 chars), '
+        '"versatility_score": integer 1-10}'
+    )
+
+    candidate_text = (
+        f"Candidate item: {candidate.get('description', '')}\n"
+        f"Color/details: {candidate.get('color', 'unspecified')}\n"
+        f"Type: {candidate.get('type', 'unspecified')}\n"
+    )
+
+    user_content = []
+    if candidate.get("image"):
+        img = candidate["image"]
+        media_type = "image/jpeg"
+        if img.startswith("data:"):
+            try:
+                header, img = img.split(",", 1)
+                if "image/png" in header: media_type = "image/png"
+                elif "image/webp" in header: media_type = "image/webp"
+            except ValueError:
+                pass
+        user_content.append({
+            "type": "image",
+            "source": {"type": "base64", "media_type": media_type, "data": img},
+        })
+
+    user_content.append({"type": "text", "text": (
+        f"{candidate_text}\n"
+        f"Closet (use these item ids only):\n{json.dumps(closet_items, ensure_ascii=False)}\n\n"
+        f"User style preferences: {json.dumps(preferences.get('styles', []))}\n"
+        f"Body profile: {json.dumps(preferences.get('body', {}))}\n"
+        f"Fit preference: {preferences.get('fit_preference', 'regular')}\n\n"
+        f"Build {n} distinct outfits that include the candidate. "
+        f"Then judge whether buying the candidate is worth it given the user's wardrobe and taste. "
+        f"Return JSON matching this schema: {schema}"
+    )})
+
+    try:
+        msg = client().messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=2000,
+            system=system,
+            messages=[{"role": "user", "content": user_content}],
         )
         text = msg.content[0].text.strip()
         if text.startswith("```"):

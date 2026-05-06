@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% set show_nav = true %}
+{% block title %}Shop — Closet Curator{% endblock %}
+
+{% block content %}
+<main class="app">
+  <div class="topbar">
+    <div>
+      <h1>Shop smart</h1>
+      <div class="sub">Try before you buy</div>
+    </div>
+  </div>
+
+  <section class="page" style="padding-top: 8px;">
+    <!-- Setup -->
+    <div id="setup">
+      <div class="card" style="margin-bottom: 18px;">
+        <div class="eyebrow">Thinking of buying something?</div>
+        <p class="muted" style="font-size: 13px; margin: 8px 0 0;">Describe it (or upload a photo). We'll build outfits showing how it'd combine with what you already own — and tell you if it's worth it.</p>
+      </div>
+
+      <div class="field">
+        <label>What's the item?</label>
+        <input type="text" id="desc" placeholder="e.g. black leather biker jacket" />
+      </div>
+
+      <div class="field">
+        <label>Color (optional)</label>
+        <input type="text" id="color" placeholder="e.g. cream, washed denim" />
+      </div>
+
+      <div class="field">
+        <label>Type</label>
+        <select id="type">
+          <option value="top">Top</option>
+          <option value="bottom">Bottom</option>
+          <option value="outerwear">Outerwear</option>
+          <option value="shoes">Shoes</option>
+          <option value="accessory">Accessory</option>
+          <option value="dress">Dress</option>
+          <option value="full_body">Full-body</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Photo (optional — paste a product URL screenshot)</label>
+        <button class="btn btn--ghost" id="uploadBtn" style="font-size:13px; padding: 12px;">📎 Upload reference photo</button>
+        <input type="file" id="fileInput" accept="image/*" hidden />
+        <div id="preview" hidden style="margin-top: 10px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--line-soft);">
+          <img id="previewImg" style="width:100%; max-height:200px; object-fit:cover;" />
+        </div>
+      </div>
+
+      <button class="btn btn--primary" id="genBtn" style="margin-top: 12px;">Show me outfits</button>
+      <p class="muted" style="text-align:center; font-size:12px; margin-top:10px;" id="closetHint"></p>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" hidden class="loader" style="margin-top: 40px;">
+      <div class="loader__spinner"></div>
+      <div class="loader__text">Imagining how it'd fit your wardrobe…</div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" hidden>
+      <div class="card" id="verdict" style="margin-bottom: 18px;">
+        <div class="eyebrow" id="verdictLabel"></div>
+        <div style="font-family: var(--font-display); font-size: 22px; margin-top: 4px;" id="verdictText"></div>
+        <div class="muted" style="font-size: 13px; margin-top: 6px;" id="verdictReason"></div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top: 12px;">
+          <div style="font-size:11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em;">Versatility</div>
+          <div style="flex:1; height:6px; background: var(--bg-elev-2); border-radius: 999px; overflow: hidden;">
+            <div id="versBar" style="height:100%; background: white; width:0%;"></div>
+          </div>
+          <div style="font-size:13px; font-weight:600;" id="versScore">—</div>
+        </div>
+      </div>
+
+      <div class="eyebrow" style="margin-bottom: 10px;">Outfits you'd unlock</div>
+      <div id="outfitList"></div>
+      <button class="btn btn--ghost" id="newGenBtn" style="margin-top: 18px;">← Try another item</button>
+    </div>
+  </section>
+</main>
+
+<script>
+  let candidateImage = null;
+
+  function checkCloset() {
+    const state = window.CC.get();
+    const hint = document.getElementById('closetHint');
+    const btn = document.getElementById('genBtn');
+    if (state.closet.length < 3) {
+      hint.textContent = `Add ${3 - state.closet.length} more closet item${state.closet.length === 2 ? '' : 's'} first so we can build outfits.`;
+      btn.disabled = true;
+    } else {
+      hint.textContent = `Combining with ${state.closet.length} items in your closet.`;
+      btn.disabled = false;
+    }
+  }
+  checkCloset();
+
+  document.getElementById('uploadBtn').addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById('fileInput').click();
+  });
+  document.getElementById('fileInput').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    candidateImage = await downscale(file, 1024, 0.82);
+    document.getElementById('previewImg').src = candidateImage;
+    document.getElementById('preview').hidden = false;
+    e.target.value = '';
+  });
+
+  function downscale(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error);
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('image decode'));
+        img.onload = () => {
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function generate() {
+    const desc = document.getElementById('desc').value.trim();
+    if (!desc) { window.toast('Describe the item first'); return; }
+    const state = window.CC.get();
+
+    document.getElementById('setup').hidden = true;
+    document.getElementById('results').hidden = true;
+    document.getElementById('loading').hidden = false;
+
+    try {
+      const slimCloset = state.closet.map(i => ({
+        id: i.id, name: i.name, type: i.type, subtype: i.subtype,
+        primary_color: i.primary_color, secondary_color: i.secondary_color,
+        pattern: i.pattern, fit: i.fit, style_tags: i.style_tags,
+        warmth: i.warmth, season: i.season, formality: i.formality,
+      }));
+
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 45000);
+      const r = await fetch('/api/wishlist-outfit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidate: {
+            description: desc,
+            color: document.getElementById('color').value.trim(),
+            type: document.getElementById('type').value,
+            image: candidateImage,
+          },
+          closet: slimCloset,
+          preferences: state.profile,
+          n: 3,
+        }),
+        signal: ctrl.signal,
+      }).finally(() => clearTimeout(timer));
+
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || 'Generation failed');
+      }
+      const data = await r.json();
+      renderResults(data, state);
+    } catch (e) {
+      document.getElementById('loading').hidden = true;
+      document.getElementById('setup').hidden = false;
+      window.toast(e.message || 'Failed');
+    }
+  }
+
+  function renderResults(data, state) {
+    const itemMap = Object.fromEntries(state.closet.map(i => [i.id, i]));
+
+    // Verdict
+    const verdict = data.verdict || 'maybe';
+    const labels = { worth_it: 'Verdict', pass: 'Verdict', maybe: 'Verdict' };
+    const texts = { worth_it: '✓ Worth it', pass: '✗ Pass on this one', maybe: '~ Maybe' };
+    document.getElementById('verdictLabel').textContent = labels[verdict];
+    document.getElementById('verdictText').textContent = texts[verdict];
+    document.getElementById('verdictReason').textContent = data.verdict_reason || '';
+    const score = data.versatility_score || 5;
+    document.getElementById('versBar').style.width = (score * 10) + '%';
+    document.getElementById('versScore').textContent = score + '/10';
+
+    // Outfits — show candidate as a placeholder tile + real items
+    const list = document.getElementById('outfitList');
+    list.innerHTML = (data.outfits || []).map(o => {
+      const items = (o.item_ids || []).map(id => itemMap[id]).filter(Boolean);
+      const total = items.length + 1; // +1 for candidate
+      const cls = total === 3 ? 'count-3' : '';
+      const candidateTile = `
+        <div class="outfit-card__item" style="background: linear-gradient(135deg, #1f1f1f, #0a0a0a); display: grid; place-items: center; padding: 16px; text-align: center;">
+          <div>
+            <div style="font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.12em;">New</div>
+            <div style="font-family: var(--font-display); font-size: 13px; font-weight: 600; margin-top: 6px;">${data.candidate_summary || 'Candidate'}</div>
+          </div>
+          <div class="outfit-card__item-label">candidate</div>
+        </div>
+      `;
+      const ownedTiles = items.map(i => `
+        <div class="outfit-card__item">
+          <img src="${i.image}" alt="${i.name}" />
+          <div class="outfit-card__item-label">${i.type}</div>
+        </div>
+      `).join('');
+      return `
+        <div class="outfit-card" data-id="${o.id}">
+          <div class="outfit-card__items ${cls}">
+            ${candidateTile}${ownedTiles}
+          </div>
+          <div class="outfit-card__body">
+            <div class="outfit-card__name">${o.name || 'Look'}</div>
+            <div class="outfit-card__why">${o.why_it_works || ''}</div>
+            <div class="outfit-card__tags">${(o.vibe_tags || []).map(t => `<span class="tag">${t}</span>`).join('')}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('loading').hidden = true;
+    document.getElementById('results').hidden = false;
+    window.scrollTo(0, 0);
+  }
+
+  document.getElementById('genBtn').addEventListener('click', generate);
+  document.getElementById('newGenBtn').addEventListener('click', () => {
+    document.getElementById('results').hidden = true;
+    document.getElementById('setup').hidden = false;
+  });
+</script>
+{% endblock %}
