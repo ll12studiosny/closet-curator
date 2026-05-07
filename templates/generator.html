@@ -53,9 +53,17 @@
     </div>
 
     <!-- Loading -->
-    <div id="loading" hidden class="loader" style="margin-top: 40px;">
-      <div class="loader__spinner"></div>
-      <div class="loader__text">Curating looks just for you…</div>
+    <div id="loading" hidden style="margin-top: 32px;">
+      <div style="background: var(--bg-elev); border: 1px solid var(--line-soft); border-radius: var(--radius-lg); padding: 22px; max-width: 360px; margin: 0 auto;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom: 18px;">
+          <div class="loader__spinner" style="width: 22px; height: 22px; border-width: 2.5px;"></div>
+          <div style="font-family: var(--font-display); font-weight: 600; font-size: 15px;" id="loadingHeadline">Curating looks…</div>
+        </div>
+        <div id="loadingSteps" style="display:flex; flex-direction:column; gap:10px;"></div>
+        <div style="height:6px; background: var(--bg-elev-2); border-radius: 999px; margin-top: 18px; overflow: hidden;">
+          <div id="loadingBar" style="height:100%; width:0%; background:#fff; transition: width .35s ease;"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Results -->
@@ -131,25 +139,48 @@
   }
   checkCloset();
 
-  // Generate
+  // Loading-step UI helpers
+  function resetLoader() {
+    document.getElementById('loadingHeadline').textContent = 'Curating looks…';
+    document.getElementById('loadingSteps').innerHTML = '';
+    document.getElementById('loadingBar').style.width = '0%';
+  }
+
+  function addStep(text, weight) {
+    const el = document.createElement('div');
+    el.style.cssText = 'display:flex; align-items:center; gap:10px; font-size:13px; color: var(--text-dim); animation: fadein .25s ease;';
+    el.innerHTML = `<span style="color:#fff;">✓</span><span>${text}</span>`;
+    document.getElementById('loadingSteps').appendChild(el);
+    // Bump progress bar
+    const bar = document.getElementById('loadingBar');
+    const cur = parseFloat(bar.style.width) || 0;
+    bar.style.width = Math.min(100, cur + (weight || 12)) + '%';
+  }
+
+  function setHeadline(text) {
+    document.getElementById('loadingHeadline').textContent = text;
+  }
+
+  // Generate (streaming)
   async function generate() {
     const state = window.CC.get();
     document.getElementById('setup').hidden = true;
     document.getElementById('results').hidden = true;
     document.getElementById('loading').hidden = false;
+    resetLoader();
 
+    const slimCloset = state.closet.map(i => ({
+      id: i.id, name: i.name, type: i.type, subtype: i.subtype,
+      primary_color: i.primary_color, secondary_color: i.secondary_color,
+      pattern: i.pattern, fit: i.fit, style_tags: i.style_tags,
+      warmth: i.warmth, season: i.season, formality: i.formality,
+    }));
+
+    let finalResult = null;
     try {
-      // Send a slim version of the closet (without image data) to keep payload small.
-      const slimCloset = state.closet.map(i => ({
-        id: i.id, name: i.name, type: i.type, subtype: i.subtype,
-        primary_color: i.primary_color, secondary_color: i.secondary_color,
-        pattern: i.pattern, fit: i.fit, style_tags: i.style_tags,
-        warmth: i.warmth, season: i.season, formality: i.formality,
-      }));
-
-      const r = await fetch('/api/generate', {
+      const r = await fetch('/api/generate-stream', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
         body: JSON.stringify({
           closet: slimCloset,
           preferences: state.profile,
@@ -159,16 +190,55 @@
           n: 3,
         }),
       });
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        throw new Error(err.error || 'Generation failed');
+      if (!r.ok || !r.body) throw new Error('Generation failed');
+
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const events = buf.split('\n\n');
+        buf = events.pop();
+        for (const evt of events) {
+          if (!evt.startsWith('data: ')) continue;
+          let payload;
+          try { payload = JSON.parse(evt.slice(6)); } catch { continue; }
+          handleEvent(payload);
+          if (payload.stage === 'done') finalResult = payload.result;
+          if (payload.stage === 'error') throw new Error(payload.msg || 'Generation failed');
+        }
       }
-      const data = await r.json();
-      renderResults(data, state);
+
+      if (finalResult) {
+        document.getElementById('loadingBar').style.width = '100%';
+        await new Promise(res => setTimeout(res, 250));
+        renderResults(finalResult, state);
+      } else {
+        throw new Error('No result received');
+      }
     } catch (e) {
       document.getElementById('loading').hidden = true;
       document.getElementById('setup').hidden = false;
       window.toast(e.message || 'Failed to generate');
+    }
+  }
+
+  function handleEvent(p) {
+    if (p.stage === 'analyzing') {
+      setHeadline('Reading your closet');
+      addStep(p.msg, 10);
+    } else if (p.stage === 'thinking') {
+      setHeadline('Thinking like a stylist');
+      addStep(p.msg, 12);
+    } else if (p.stage && p.stage.startsWith('outfit_')) {
+      setHeadline('Building outfit ' + (p.n || ''));
+      addStep(p.msg, 18);
+    } else if (p.stage && p.stage.startsWith('reasoning_')) {
+      addStep(p.msg, 12);
+    } else if (p.stage === 'done') {
+      setHeadline('Done!');
     }
   }
 

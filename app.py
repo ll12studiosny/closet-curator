@@ -1,7 +1,8 @@
 import os
 import json
 import base64
-from flask import Flask, render_template, request, jsonify
+import re
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 from dotenv import load_dotenv
 from anthropic import Anthropic
 
@@ -218,6 +219,110 @@ def api_generate():
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.post("/api/generate-stream")
+def api_generate_stream():
+    """Streaming version of /api/generate. Emits SSE events as Claude generates,
+    so the UI can show real progress (which outfit is being built) instead of
+    a blank spinner."""
+    data = request.get_json(silent=True) or {}
+    closet_items = data.get("closet", [])
+    preferences = data.get("preferences", {})
+    event = data.get("event", "casual")
+    weather = data.get("weather", {})
+    feedback = data.get("feedback", {"liked": [], "disliked": []})
+    n = int(data.get("n", 3))
+
+    if not closet_items:
+        return Response(
+            f"data: {json.dumps({'stage': 'error', 'msg': 'Closet is empty.'})}\n\n",
+            mimetype="text/event-stream",
+        )
+
+    system = (
+        "You are a world-class personal stylist. You build outfits using ONLY the items "
+        "the user owns. You respect their style preferences, body proportions, and fit "
+        "preferences. You follow real fashion principles: silhouette balance, color harmony, "
+        "proportion, layering, formality matching the occasion, and weather appropriateness. "
+        "You never invent items not in the closet. You learn from the user's liked/disliked history. "
+        "Return STRICT JSON only, no prose."
+    )
+    schema = (
+        '{"outfits": [{"id": string, "name": string, "item_ids": string[], '
+        '"why_it_works": string (max 240 chars, confident and specific), '
+        '"vibe_tags": string[]}], "missing": string[] (key wardrobe gaps, may be empty)}'
+    )
+    user_prompt = (
+        f"Closet (use ONLY these item ids):\n{json.dumps(closet_items, ensure_ascii=False)}\n\n"
+        f"User style preferences: {json.dumps(preferences.get('styles', []))}\n"
+        f"Body profile: {json.dumps(preferences.get('body', {}))}\n"
+        f"Fit preference: {preferences.get('fit_preference', 'regular')}\n"
+        f"Event/occasion: {event}\n"
+        f"Weather: {json.dumps(weather)}\n"
+        f"Previously liked outfit ids: {json.dumps(feedback.get('liked', []))}\n"
+        f"Previously disliked outfit ids: {json.dumps(feedback.get('disliked', []))}\n\n"
+        f"Build {n} distinct outfit combinations. Each must be realistic, wearable, "
+        f"and reflect the user's style. Use the item_id values exactly. "
+        f"Return JSON matching this schema: {schema}"
+    )
+
+    def sse(obj):
+        return f"data: {json.dumps(obj)}\n\n"
+
+    def stream():
+        yield sse({"stage": "analyzing", "msg": "Reading your closet…"})
+        try:
+            with client().messages.stream(
+                model=FAST_MODEL,
+                max_tokens=2000,
+                system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+                messages=[{"role": "user", "content": user_prompt}],
+            ) as s:
+                yield sse({"stage": "thinking", "msg": "Coordinating colors & silhouettes…"})
+                buf = ""
+                outfit_names = []  # detected as Claude writes them
+                announced_outfits = 0
+                announced_why = 0
+                for chunk in s.text_stream:
+                    buf += chunk
+                    # Detect each new "name": "..." as Claude writes it
+                    names = re.findall(r'"name"\s*:\s*"([^"]+)"', buf)
+                    if len(names) > announced_outfits:
+                        for name in names[announced_outfits:]:
+                            outfit_names.append(name)
+                            yield sse({
+                                "stage": f"outfit_{len(outfit_names)}",
+                                "msg": f"Building “{name}”…",
+                                "n": len(outfit_names),
+                            })
+                        announced_outfits = len(names)
+                    # Detect when "why_it_works" starts being written for an outfit
+                    whys = re.findall(r'"why_it_works"', buf)
+                    if len(whys) > announced_why:
+                        announced_why = len(whys)
+                        if announced_why <= len(outfit_names):
+                            yield sse({
+                                "stage": f"reasoning_{announced_why}",
+                                "msg": f"Explaining why {outfit_names[announced_why-1]} works…",
+                            })
+
+                final = s.get_final_message()
+                text = final.content[0].text.strip()
+                if text.startswith("```"):
+                    text = text.strip("`")
+                    if text.startswith("json"):
+                        text = text[4:]
+                    text = text.strip()
+                result = json.loads(text)
+                yield sse({"stage": "done", "result": result})
+        except Exception as e:
+            yield sse({"stage": "error", "msg": str(e)})
+
+    return Response(stream_with_context(stream()), mimetype="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    })
 
 
 @app.post("/api/wishlist-outfit")
