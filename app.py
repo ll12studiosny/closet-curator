@@ -29,18 +29,19 @@ def _gzip_and_cache(resp):
         if (
             "gzip" in accept
             and resp.status_code == 200
-            and resp.content_length is not None
-            and resp.content_length > 1024
-            and resp.mimetype in ("text/html", "text/css", "application/javascript", "application/json", "text/plain")
+            and not resp.direct_passthrough
+            and resp.mimetype in ("text/html", "text/css", "application/javascript", "application/json", "text/plain", "image/svg+xml")
             and "Content-Encoding" not in resp.headers
         ):
-            buf = io.BytesIO()
-            with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=6) as gz:
-                gz.write(resp.get_data())
-            resp.set_data(buf.getvalue())
-            resp.headers["Content-Encoding"] = "gzip"
-            resp.headers["Vary"] = "Accept-Encoding"
-            resp.headers["Content-Length"] = str(len(resp.get_data()))
+            data = resp.get_data()
+            if len(data) > 512:
+                buf = io.BytesIO()
+                with gzip.GzipFile(fileobj=buf, mode="wb", compresslevel=6) as gz:
+                    gz.write(data)
+                resp.set_data(buf.getvalue())
+                resp.headers["Content-Encoding"] = "gzip"
+                resp.headers["Vary"] = "Accept-Encoding"
+                resp.headers["Content-Length"] = str(len(resp.get_data()))
     except Exception:
         pass
     return resp
