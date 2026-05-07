@@ -120,7 +120,7 @@
       banner.style.display = 'block';
       grid.innerHTML = state.closet.map(item => `
         <div class="closet-item" data-id="${item.id}">
-          <img src="${item.image}" alt="${item.name}" />
+          <img src="${item.image}" alt="${item.name}" loading="lazy" decoding="async" />
           <div class="closet-item__meta">
             <div class="closet-item__name">${item.name || item.subtype || item.type}</div>
             <div class="closet-item__type">${item.type} &middot; ${item.primary_color || ''}</div>
